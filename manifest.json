@@ -3,16 +3,17 @@
   "name": "Amazon ISBN Library Search",
   "version": "1.0",
   "description": "Detects ISBN on Amazon pages and provides a link to search your local library",
-  "permissions": ["activeTab"],
+  "permissions": ["activeTab", "tabs"],
+  "host_permissions": ["https://www.amazon.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": ["https://www.amazon.com/*"],
       "js": ["content.js"]
     }
   ],
-  "background": {
-    "service_worker": "background.js"
-  },
   "action": {
     "default_popup": "popup.html"
   }
