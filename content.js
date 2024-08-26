@@ -22,7 +22,7 @@ function addLibraryButton(isbn) {
   button.style.border = "1px solid #a88734";
   button.style.borderRadius = "3px";
   button.style.cursor = "pointer";
-  button.style.display = "block";
+  button.style.display = "inline-block";
 
   button.addEventListener("click", () => {
     chrome.runtime.sendMessage({ action: "searchLibrary", isbn: isbn });
