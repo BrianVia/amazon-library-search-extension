@@ -3,6 +3,11 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     chrome.tabs.sendMessage(tabId, {
       action: "urlChanged",
       url: tab.url,
+    }, (response) => {
+      // Error handling for when content script is not ready
+      if (chrome.runtime.lastError) {
+        console.log("Content script not ready yet:", chrome.runtime.lastError.message);
+      }
     });
   }
 });
