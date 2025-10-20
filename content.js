@@ -52,7 +52,10 @@ function checkAndUpdateButton() {
 // Listen for messages from the background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "urlChanged") {
-    checkAndUpdateButton();
+    // Add delay to allow Amazon's page content to update before extracting ISBN
+    setTimeout(() => {
+      checkAndUpdateButton();
+    }, 750);
   }
 });
 
