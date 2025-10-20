@@ -38,7 +38,15 @@ function addLibraryButton(isbn) {
 
 function checkAndUpdateButton() {
   const isbn = findISBN();
-  addLibraryButton(isbn);
+  if (isbn) {
+    addLibraryButton(isbn);
+  } else {
+    // Remove button if it exists and no ISBN is found
+    const existingButton = document.getElementById("fairfax-library-search");
+    if (existingButton) {
+      existingButton.remove();
+    }
+  }
 }
 
 // Listen for messages from the background script
