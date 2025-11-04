@@ -16,23 +16,27 @@ function addLibraryButton(isbn) {
   const button = document.createElement("button");
   button.id = "fairfax-library-search";
   button.textContent = "Search Fairfax County Library";
+  button.style.width = "100%";
   button.style.padding = "10px";
-  button.style.margin = "10px 0";
+  button.style.margin = "8px 0";
   button.style.backgroundColor = "#f0c14b";
   button.style.border = "1px solid #a88734";
-  button.style.borderRadius = "3px";
+  button.style.borderRadius = "8px";
   button.style.cursor = "pointer";
-  button.style.display = "inline-block";
+  button.style.fontSize = "13px";
+  button.style.fontWeight = "400";
+  button.style.textAlign = "center";
 
   button.addEventListener("click", () => {
     chrome.runtime.sendMessage({ action: "searchLibrary", isbn: isbn });
   });
 
-  const imageElement = document.querySelector("#landingImage");
-  if (imageElement && imageElement.parentNode) {
-    imageElement.parentNode.insertBefore(button, imageElement.nextSibling);
+  // Try to find the button stack (contains Add to Cart and Buy Now)
+  const buttonStack = document.querySelector("#addToCart_feature_div .a-button-stack");
+  if (buttonStack) {
+    buttonStack.appendChild(button);
   } else {
-    console.error("Could not find #landingImage element");
+    console.error("Could not find .a-button-stack element");
   }
 }
 
