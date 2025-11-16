@@ -16,5 +16,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "searchLibrary") {
     const librarySearchUrl = `https://fcplcat.fairfaxcounty.gov/search/searchresults.aspx?ctx=1.1033.0.0.1&type=Advanced&term=${request.isbn}&relation=ALL&by=ISBN&bool4=AND&limit=TOM=*&sort=RELEVANCE&page=0&searchid=2`;
     chrome.tabs.create({ url: librarySearchUrl });
+  } else if (request.action === "searchMAM") {
+    const searchTerm = encodeURIComponent(request.title);
+    const mamSearchUrl = `https://www.myanonamouse.net/tor/browse.php?tor[srchIn][title]=true&tor[text]=${searchTerm}`;
+    chrome.tabs.create({ url: mamSearchUrl });
   }
 });

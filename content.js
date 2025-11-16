@@ -7,20 +7,25 @@ function findISBN() {
   return match ? match[1].replace(/[- ]/g, "") : null;
 }
 
-function addLibraryButton(isbn) {
-  const existingButton = document.getElementById("fairfax-library-search");
-  if (existingButton) {
-    existingButton.remove();
-  }
+function getBookTitle() {
+  const titleElement = document.querySelector('#productTitle');
+  return titleElement ? titleElement.textContent.trim() : null;
+}
 
+function getBookAuthor() {
+  const authorElement = document.querySelector('a.a-link-normal span[data-a-popover*="contributor"]');
+  return authorElement ? authorElement.textContent.trim() : null;
+}
+
+function createButton(id, text, backgroundColor, borderColor, data, action) {
   const button = document.createElement("button");
-  button.id = "fairfax-library-search";
-  button.textContent = "Search Fairfax County Library";
+  button.id = id;
+  button.textContent = text;
   button.style.width = "100%";
   button.style.padding = "10px";
   button.style.margin = "8px 0";
-  button.style.backgroundColor = "#f0c14b";
-  button.style.border = "1px solid #a88734";
+  button.style.backgroundColor = backgroundColor;
+  button.style.border = `1px solid ${borderColor}`;
   button.style.borderRadius = "8px";
   button.style.cursor = "pointer";
   button.style.fontSize = "13px";
@@ -28,8 +33,58 @@ function addLibraryButton(isbn) {
   button.style.textAlign = "center";
 
   button.addEventListener("click", () => {
-    chrome.runtime.sendMessage({ action: "searchLibrary", isbn: isbn });
+    chrome.runtime.sendMessage({ action: action, ...data });
   });
+
+  return button;
+}
+
+function addLibraryButton(isbn) {
+  const existingButton = document.getElementById("fairfax-library-search");
+  if (existingButton) {
+    existingButton.remove();
+  }
+
+  const button = createButton(
+    "fairfax-library-search",
+    "Search Fairfax County Library",
+    "#f0c14b",
+    "#a88734",
+    { isbn },
+    "searchLibrary"
+  );
+
+  // Try to find the button stack (contains Add to Cart and Buy Now)
+  const buttonStack = document.querySelector("#addToCart_feature_div .a-button-stack");
+  if (buttonStack) {
+    buttonStack.appendChild(button);
+  } else {
+    console.error("Could not find .a-button-stack element");
+  }
+}
+
+function addMAMButton() {
+  const existingButton = document.getElementById("mam-library-search");
+  if (existingButton) {
+    existingButton.remove();
+  }
+
+  const title = getBookTitle();
+  if (!title) {
+    console.warn("Could not find book title for MAM search");
+    return;
+  }
+
+  const author = getBookAuthor();
+
+  const button = createButton(
+    "mam-library-search",
+    "Search MAM",
+    "#e0c21a",
+    "#c9a815",
+    { title, author },
+    "searchMAM"
+  );
 
   // Try to find the button stack (contains Add to Cart and Buy Now)
   const buttonStack = document.querySelector("#addToCart_feature_div .a-button-stack");
@@ -44,11 +99,16 @@ function checkAndUpdateButton() {
   const isbn = findISBN();
   if (isbn) {
     addLibraryButton(isbn);
+    addMAMButton();
   } else {
-    // Remove button if it exists and no ISBN is found
-    const existingButton = document.getElementById("fairfax-library-search");
-    if (existingButton) {
-      existingButton.remove();
+    // Remove buttons if they exist and no ISBN is found
+    const fcplButton = document.getElementById("fairfax-library-search");
+    if (fcplButton) {
+      fcplButton.remove();
+    }
+    const mamButton = document.getElementById("mam-library-search");
+    if (mamButton) {
+      mamButton.remove();
     }
   }
 }
