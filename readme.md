@@ -23,7 +23,7 @@
 
 2. The extension will automatically scan the page for an ISBN number.
 
-3. If an ISBN is found, a "Search Fairfax County Library" button will appear below the main product image.
+3. If an ISBN is found, "Search Fairfax County Library" and "Search MAM" buttons appear under the Buy Now button.
 
 4. Click the button to open a new tab with search results for that book in the Fairfax County Public Library catalog.
 

@@ -1,13 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Amazon ISBN Library Search",
-  "version": "1.0",
-  "description": "Detects ISBN on Amazon pages and provides a link to search your local library",
-  "permissions": ["activeTab", "tabs"],
-  "host_permissions": ["https://www.amazon.com/*"],
-  "background": {
-    "service_worker": "background.js"
-  },
+  "version": "1.1",
+  "description": "Detects the ISBN on Amazon book pages and adds buttons to search your local library and MAM",
   "content_scripts": [
     {
       "matches": ["https://www.amazon.com/*"],

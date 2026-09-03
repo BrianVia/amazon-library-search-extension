@@ -1,127 +1,93 @@
-let checkInterval = null;
+// Amazon book page -> "search my library" buttons.
+// Pure helpers (parseISBN, cleanTitle) are exported for test.js; everything
+// touching the DOM lives in start().
 
-function findISBN() {
-  const regex = /ISBN-(?:10|13)\s*[\u200E\u200F]?\s*:\s*[\u200E\u200F]?\s*([\d-]{10,17})/;
-  const pageText = document.body.innerText;
-  const match = pageText.match(regex);
-  return match ? match[1].replace(/[- ]/g, "") : null;
+// Amazon writes "ISBN-13 ‏ : ‎ 978-..." (with bidi marks) in Product details, and
+// "ISBN-13\n978-..." (no colon) in the book-details strip at the top.
+const SEP = "\\s*[\\u200E\\u200F]?\\s*:?\\s*[\\u200E\\u200F]?\\s*";
+const ISBN13_RE = new RegExp(`ISBN-13${SEP}([\\d-]{13,17})`);
+const ISBN10_RE = new RegExp(`ISBN-10${SEP}([\\dXx-]{10,13})`);
+
+// Prefer ISBN-13; fall back to ISBN-10 (which may end in X).
+function parseISBN(text) {
+  const match = text.match(ISBN13_RE) || text.match(ISBN10_RE);
+  return match ? match[1].replace(/-/g, "").toUpperCase() : null;
 }
 
-function getBookTitle() {
-  const titleElement = document.querySelector('#productTitle');
-  return titleElement ? titleElement.textContent.trim() : null;
+// "Dune: Deluxe Edition (Book 1)" -> "Dune". Amazon subtitles kill MAM recall.
+// ponytail: naive split on ':' or '('; falls back to the full title if that leaves nothing.
+function cleanTitle(title) {
+  const short = (title || "").split(/[:(]/)[0].trim();
+  return short || (title || "").trim();
 }
 
-function getBookAuthor() {
-  const authorElement = document.querySelector('a.a-link-normal span[data-a-popover*="contributor"]');
-  return authorElement ? authorElement.textContent.trim() : null;
-}
+// Only this book's own detail sections. Whole-page text also contains other
+// books' ISBNs (compare widgets, carousels), which is what made the FCPL
+// search open the wrong book.
+const DETAIL_SECTIONS = "#richProductInformation_feature_div, #detailBullets_feature_div, #prodDetails, #productDetails_feature_div";
+const pageISBN = () => parseISBN([...document.querySelectorAll(DETAIL_SECTIONS)].map((el) => el.innerText).join("\n"));
 
-function createButton(id, text, backgroundColor, borderColor, data, action) {
+const SEARCHES = [
+  {
+    label: "Search Fairfax County Library",
+    bg: "#f0c14b",
+    border: "#a88734",
+    url: () => {
+      const isbn = pageISBN();
+      return isbn && `https://fcplcat.fairfaxcounty.gov/search/searchresults.aspx?ctx=1.1033.0.0.1&type=Advanced&term=${isbn}&relation=ALL&by=ISBN&bool4=AND&limit=TOM=*&sort=RELEVANCE&page=0&searchid=2`;
+    },
+  },
+  {
+    label: "Search MAM",
+    bg: "#e0c21a",
+    border: "#c9a815",
+    url: () => {
+      const title = cleanTitle(document.querySelector("#productTitle")?.textContent);
+      return title && `https://www.myanonamouse.net/tor/browse.php?tor[srchIn][title]=true&tor[text]=${encodeURIComponent(title)}`;
+    },
+  },
+];
+
+const CONTAINER_ID = "library-search-buttons";
+
+function makeButton({ label, bg, border, url }) {
   const button = document.createElement("button");
-  button.id = id;
-  button.textContent = text;
-  button.style.width = "100%";
-  button.style.padding = "10px";
-  button.style.margin = "8px 0";
-  button.style.backgroundColor = backgroundColor;
-  button.style.border = `1px solid ${borderColor}`;
-  button.style.borderRadius = "8px";
-  button.style.cursor = "pointer";
-  button.style.fontSize = "13px";
-  button.style.fontWeight = "400";
-  button.style.textAlign = "center";
-
-  button.addEventListener("click", () => {
-    chrome.runtime.sendMessage({ action: action, ...data });
+  button.type = "button"; // the stack lives inside Amazon's buy form; default type would submit it
+  button.textContent = label;
+  Object.assign(button.style, {
+    width: "100%", padding: "10px", margin: "8px 0", backgroundColor: bg,
+    border: `1px solid ${border}`, borderRadius: "8px", cursor: "pointer",
+    fontSize: "13px", fontWeight: "400", textAlign: "center",
   });
-
+  // URL is built at click time, so the button can never hold a stale book's data.
+  button.addEventListener("click", () => {
+    const href = url();
+    if (href) window.open(href, "_blank", "noopener");
+  });
   return button;
 }
 
-function addLibraryButton(isbn) {
-  const existingButton = document.getElementById("fairfax-library-search");
-  if (existingButton) {
-    existingButton.remove();
-  }
-
-  const button = createButton(
-    "fairfax-library-search",
-    "Search Fairfax County Library",
-    "#f0c14b",
-    "#a88734",
-    { isbn },
-    "searchLibrary"
-  );
-
-  // Try to find the button stack (contains Add to Cart and Buy Now)
-  const buttonStack = document.querySelector("#addToCart_feature_div .a-button-stack");
-  if (buttonStack) {
-    buttonStack.appendChild(button);
-  } else {
-    console.error("Could not find .a-button-stack element");
-  }
+// Make the DOM match the page: buttons present iff an ISBN is on the page.
+// Idempotent, so it is safe to run on a timer.
+function sync() {
+  const box = document.getElementById(CONTAINER_ID);
+  const wanted = Boolean(pageISBN());
+  if (wanted === Boolean(box)) return;
+  if (!wanted) return box.remove();
+  const stack = document.querySelector("#addToCart_feature_div .a-button-stack");
+  if (!stack) return;
+  const div = document.createElement("div");
+  div.id = CONTAINER_ID;
+  div.append(...SEARCHES.map(makeButton));
+  stack.append(div);
 }
 
-function addMAMButton() {
-  const existingButton = document.getElementById("mam-library-search");
-  if (existingButton) {
-    existingButton.remove();
-  }
-
-  const title = getBookTitle();
-  if (!title) {
-    console.warn("Could not find book title for MAM search");
-    return;
-  }
-
-  const author = getBookAuthor();
-
-  const button = createButton(
-    "mam-library-search",
-    "Search MAM",
-    "#e0c21a",
-    "#c9a815",
-    { title, author },
-    "searchMAM"
-  );
-
-  // Try to find the button stack (contains Add to Cart and Buy Now)
-  const buttonStack = document.querySelector("#addToCart_feature_div .a-button-stack");
-  if (buttonStack) {
-    buttonStack.appendChild(button);
-  } else {
-    console.error("Could not find .a-button-stack element");
-  }
+function start() {
+  // Amazon renders product details late and swaps formats without a reload,
+  // so poll instead of guessing delays. Reading the detail sections is ~1ms.
+  sync();
+  setInterval(sync, 500);
 }
 
-function checkAndUpdateButton() {
-  const isbn = findISBN();
-  if (isbn) {
-    addLibraryButton(isbn);
-    addMAMButton();
-  } else {
-    // Remove buttons if they exist and no ISBN is found
-    const fcplButton = document.getElementById("fairfax-library-search");
-    if (fcplButton) {
-      fcplButton.remove();
-    }
-    const mamButton = document.getElementById("mam-library-search");
-    if (mamButton) {
-      mamButton.remove();
-    }
-  }
-}
-
-// Listen for messages from the background script
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === "urlChanged") {
-    // Add delay to allow Amazon's page content to update before extracting ISBN
-    setTimeout(() => {
-      checkAndUpdateButton();
-    }, 750);
-  }
-});
-
-// Initial check when the script loads
-checkAndUpdateButton();
+if (typeof module !== "undefined") module.exports = { parseISBN, cleanTitle };
+else start();
